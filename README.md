@@ -2,47 +2,52 @@
 
 ## About
 
-This project implements a dynamic mapping system using .NET 10, 
-designed to handle bidirectional data conversion between DIRS21 
-internal C# data models and external partner-specific models.
+This project implements a dynamic mapping system using .NET 10, designed to handle 
+bidirectional data conversion between DIRS21 internal C# data models and external 
+partner-specific models.
 
-The system is built around a Registry Pattern, where a central 
-MapHandler delegates mapping responsibilities to partner-specific 
-mappers registered in a MapperRegistry. The architecture is fully 
-extensible — adding a new partner requires only implementing a new 
-mapper class and registering it, with zero changes to the core engine.
+The system is built around a **Registry Pattern**, where a central `MapHandler` delegates 
+mapping responsibilities to partner-specific mappers registered in a `MapperRegistry`. 
+The architecture is fully extensible — adding a new partner requires only implementing 
+a new mapper class and registering it, with zero changes to the core engine.
 
-Key Features:
+### Key Features
+
 - Bidirectional mapping between DIRS21 and Google data models
 - Extensible architecture — add new partners with minimal effort
-- Robust error handling with custom MappingException
+- Robust error handling with custom `MappingException`
 - Input validation at every layer
 - 7 unit tests covering all mappers and edge cases
 - Clean separation of concerns across multiple projects
 
 ---
+
+## Project Structure
+
+```
 DIRS21.Mapping/
-├── DIRS21.Mapping.Models/     # Data classes for DIRS21 and partners
-│   ├── DataModel/             # Internal DIRS21 models
+├── DIRS21.Mapping.Models/          # Data classes for DIRS21 and partners
+│   ├── DataModel/                  # Internal DIRS21 models
 │   │   ├── Reservation.cs
 │   │   └── Room.cs
-│   └── Google/                # Google partner models
+│   └── Google/                     # Google partner models
 │       ├── Reservation.cs
 │       └── Room.cs
-├── DIRS21.Mapping.Core/       # Mapping engine
-│   ├── IMapper.cs             # Interface all mappers implement
-│   ├── MapHandler.cs          # Main public API
-│   ├── MapperRegistry.cs      # Stores and looks up mappers
-│   ├── MappingException.cs    # Custom error class
-│   └── Mappers/               # Concrete mapper implementations
+├── DIRS21.Mapping.Core/            # Mapping engine
+│   ├── IMapper.cs                  # Interface all mappers implement
+│   ├── MapHandler.cs               # Main public API
+│   ├── MapperRegistry.cs           # Stores and looks up mappers
+│   ├── MappingException.cs         # Custom error class
+│   └── Mappers/                    # Concrete mapper implementations
 │       ├── ReservationToGoogleMapper.cs
 │       ├── GoogleToReservationMapper.cs
 │       ├── RoomToGoogleMapper.cs
 │       └── GoogleToRoomMapper.cs
-├── DIRS21.Mapping.Demo/       # Console app demonstrating usage
+├── DIRS21.Mapping.Demo/            # Console app demonstrating usage
 │   └── Program.cs
-└── DIRS21.Mapping.Tests/      # Unit tests (xUnit)
-└── MapHandlerTests.cs
+└── DIRS21.Mapping.Tests/           # Unit tests (xUnit)
+    └── MapHandlerTests.cs
+```
 
 ---
 
@@ -50,10 +55,12 @@ DIRS21.Mapping/
 
 The system uses a **Registry Pattern**:
 
+```
 MapHandler
     └── delegates to → MapperRegistry
                             └── looks up → IMapper
                                               └── converts the data
+```
 
 - **MapHandler** — the single entry point. Accepts data, sourceType, targetType.
 - **MapperRegistry** — stores all mappers in a dictionary keyed by (sourceType, targetType).
@@ -64,6 +71,7 @@ MapHandler
 
 ## Usage
 
+```csharp
 // 1. Setup
 var registry = new MapperRegistry();
 registry.Register(new ReservationToGoogleMapper());
@@ -84,6 +92,7 @@ var dirs21Reservation = (DataModel.Reservation)mapHandler.Map(
     "Google.Reservation",
     "Model.Reservation"
 );
+```
 
 ---
 
@@ -91,12 +100,15 @@ var dirs21Reservation = (DataModel.Reservation)mapHandler.Map(
 
 **Step 1:** Add the partner models in `DIRS21.Mapping.Models`:
 
+```
 DIRS21.Mapping.Models/
 └── Booking/
-└── Reservation.cs
+    └── Reservation.cs
+```
 
 **Step 2:** Create a mapper in `DIRS21.Mapping.Core/Mappers/`:
 
+```csharp
 public class ReservationToBookingMapper : IMapper
 {
     public string SourceType => "Model.Reservation";
@@ -113,13 +125,15 @@ public class ReservationToBookingMapper : IMapper
         };
     }
 }
+```
 
 **Step 3:** Register it in your setup:
 
+```csharp
 registry.Register(new ReservationToBookingMapper());
+```
 
-
-That's it. No changes to MapHandler or MapperRegistry needed.
+That's it. No changes to `MapHandler` or `MapperRegistry` needed.
 
 ---
 
@@ -138,11 +152,27 @@ dotnet test
 ```
 
 > [!IMPORTANT]
-> Run the tests and demo using Windows CMD or PowerShell terminal only.
+> Run the tests and demo using **Windows CMD or PowerShell terminal only**.
 > Do not use the Visual Studio Test Explorer as it may throw a
-> `FileNotFoundException` due to a known compatibility issue 
-> between Visual Studio's built-in test runner and .NET 10.
+> `FileNotFoundException` due to a known compatibility issue between
+> Visual Studio's built-in test runner and .NET 10.
 > Running via terminal works perfectly and shows all 7 tests passing.
+
+---
+
+## The Big Picture
+
+```
+You call MapHandler.Map(data, "Model.Reservation", "Google.Reservation")
+                    ↓
+         MapHandler validates inputs
+                    ↓
+         MapperRegistry finds the right mapper
+                    ↓
+         ReservationToGoogleMapper.Map() runs
+                    ↓
+         Returns Google.Reservation object
+```
 
 ---
 
@@ -152,20 +182,10 @@ dotnet test
 - Numeric fields (RoomNumber, Price) are stored as strings in partner models.
 - Room availability is stored as `"available"` or `"unavailable"` in Google model.
 
+---
+
 ## Limitations
 
 - Currently only Google is supported as a partner.
 - No support for partial/nested object mapping.
-- Adding a new partner requires manual mapper registration in setup code
-
-## The big picture
-
- call MapHandler.Map(data, "Model.Reservation", "Google.Reservation")
-             ↓
- MapHandler validates inputs
-             ↓
- MapperRegistry finds the right mapper
-             ↓
- ReservationToGoogleMapper.Map() runs
-             ↓
- Returns Google.Reservation object
+- Adding a new partner requires manual mapper registration in setup code.
